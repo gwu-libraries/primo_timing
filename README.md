@@ -2,7 +2,8 @@
 
 Using asynchronous code for better performance, this script pings the supplied URL a given number of times and records the average latency. It also logs the response text from the last ping. As of now, the script can be configured to iterate through multiple Primo scopes. Support for multiple views and institutions will be added in a future release.
 
-**Dependencies**
+**Requirements & Dependencies**
+ - Python 3.6
  - pyaml
  - aiohttp
 
