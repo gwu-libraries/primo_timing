@@ -11,5 +11,5 @@ Using asynchronous code for better performance, this script pings the supplied U
 2. Update `config.yml` with the desired testing parameters. 
 3. Change the value of the `base_url` global variable inside `primo_timing.py` so that it points to your instance of Primo.
 4. Run `python primo_timing.py --init` from the command line to initialize the CSV file that stores the latency. This will also run your first test.
-5. Run `python primo_timing.py` to run subsequent tests. The response text from the last iteration will be logged to the `data_log` as defined in `config.yml`. This log is scheduled to be kept for a week before being overwritten. The CSV file, however, will accumulate indefinitely.
+5. Run `python primo_timing.py` to run subsequent tests. The response text from the last iteration will be logged to the `data_log` as defined in `config.yml`. This log is scheduled to be rolled over every Sunday; by default, no more than 7 data_log files will be stored. The CSV file, however, will accumulate indefinitely.
 6. If desired, run `primo_timing.py` from a cron job.
