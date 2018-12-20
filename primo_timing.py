@@ -63,7 +63,12 @@ async def do_trace(on_request_start, on_request_end, i, inst_code, scope):
                                                                           'scope': scope}) as session:
             # If this is the last of N trials, log the response text
             if i == n_tries-1:
-                response_log.info(await session.text())
+                response = await session.json()
+                # Just keep the first 5 documents returned (to keep the log file size manageable)
+                try: 
+                    response_log.info(response['docs'][:5])
+                except Exception as e:
+                    response_log.error(e)
  # Function to initialize and run the event loop               
 def run_trials():
     # Timestamp for this trial
