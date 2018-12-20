@@ -1,0 +1,10 @@
+search_str: lucretius
+n_tries: 10
+inst_codes: 
+ - 01WRLC_GWA
+vid: live
+scopes:
+ - DN_and_CI
+ - CentralIndex
+data_log: ./primo_data.log
+timing_log: ./primo_timing.csv
