@@ -1,0 +1,13 @@
+{
+	"name": "primo-timing",
+	"version": "0.0.1",
+	"description": "visualiztion of latency logs from Pimo ",
+	"author": "Dolsy Smith <dsmith@gwu.edu>",
+	"main": "server.js",
+	"dependencies": {
+		"express": "~4.16.0",
+		"body-parser": "~1.18.3",
+		"d3": "~5.7.0"
+	},
+	"license": true
+}
