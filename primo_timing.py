@@ -72,7 +72,7 @@ async def do_trace(on_request_start, on_request_end, i, inst_code, scope):
  # Function to initialize and run the event loop               
 def run_trials():
     # Timestamp for this trial
-    timestamp = datetime.today()
+    timestamp = datetime.today().strftim('%m-%d-%Y %H:%M')
     # TO DO: update for Python 3.7
     loop = asyncio.get_event_loop()
     # Create a list of co-routines, one for each trial/scope/institution code
