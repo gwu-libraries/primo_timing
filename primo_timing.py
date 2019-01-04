@@ -7,6 +7,9 @@ from itertools import groupby
 from logging.handlers import TimedRotatingFileHandler
 import logging
 import sys
+import os
+
+MAX_CSV_SIZE = 1000
 
 # Config file holds URL parameters, number of trials per URL, and path to log files
 with open('./primo_timing.yml', 'r') as f:
@@ -90,6 +93,7 @@ def output_results(timestamp):
     # Group results by scope and institution code and calculate the average latency across the triels
     summary = [(k, sum([group['elapsed'] for group in g])/n_tries) for k, g in groupby(results_sorted, keyfunc)]
     # Append to CSV
+    maintain_log()
     with open(config['timing_log'], 'a', newline='') as f:
         writer = DictWriter(f, fieldnames=fieldnames)
         for row in summary:
@@ -99,6 +103,16 @@ def output_results(timestamp):
                         'scope': row[0][1],
                         'n_tries': n_tries})
     return
+# Check the size of the CSV and start a new one when it gets over a limit
+# TO DO --> put the limit in the config file
+def maintain_log():
+    if os.path.getsize(config['timing_log']) > MAX_CSV_SIZE:
+        # Rename the current CSV with the timestamp appended
+        os.rename(config['timing_log'], config['timing_log'] + '_{}'.format(datetime.today().strftime('%Y-%m-%d')))
+        init_timing_log()        
+    return
+
+
 # Initialize the CSV
 def init_timing_log():
     with open(config['timing_log'], 'w', newline='') as f:
