@@ -9,7 +9,7 @@ import logging
 import sys
 import os
 
-MAX_CSV_SIZE = 1000
+MAX_CSV_SIZE = 1000000
 
 # Config file holds URL parameters, number of trials per URL, and path to log files
 with open('./primo_timing.yml', 'r') as f:
