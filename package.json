@@ -5,9 +5,14 @@
 	"author": "Dolsy Smith <dsmith@gwu.edu>",
 	"main": "server.js",
 	"dependencies": {
-		"express": "~4.16.0",
 		"body-parser": "~1.18.3",
-		"d3": "~5.7.0"
+		"chrome-har": "^0.10.0",
+		"d3": "~5.7.0",
+		"express": "~4.16.0",
+		"pg": "^7.11.0",
+		"puppeteer": "^1.17.0",
+		"puppeteer-har": "^1.0.6",
+		"winston": "^3.2.1"
 	},
 	"license": true
 }
