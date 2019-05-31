@@ -1,10 +1,75 @@
-search_str: lucretius
+search_strs: 
+  file: ./data/primo_top_searches.csv
+  column: Search String
 n_tries: 10
-inst_codes: 
- - 01WRLC_GWA
-vid: live
-scopes:
- - DN_and_CI
- - CentralIndex
-data_log: ./primo_data.log
-timing_log: ./primo_timing.csv
+institutions:
+  - inst: 01WRLC_GWA
+    scopes: 
+    - scope: DN_and_CI
+      tab: Everything
+    - scope: CentralIndex
+      tab: CentralIndex
+    vid: live
+    domain: wrlc-gwu
+  - inst: 01SUNY_GCC
+    scopes: 
+    - scope: MyInst_and_CI
+      tab: Everything
+    - scope: DiscoveryNetwork
+      tab: SUNY
+    vid: 01SUNY_GCC
+    domain: suny-gcc
+  - inst: 01SUNY_BUF
+    scopes:
+    - scope: MyInst_and_CI
+      tab: Everything
+    - scope: UBSUNY
+      tab: EverythingUBSUNY
+    vid: everything
+    domain: suny-buf
+  - inst: 01SUNY_BSC
+    scopes:
+    - scope: DiscoveryNetwork
+      tab: SUNY
+    - scope: MyInst_and_CI
+      tab: Everything
+    vid: 01SUNY_BSC
+    domain: suny-bsc
+  - inst: 01SUNY_BIN
+    scopes:
+    - scope: DiscoveryNetwork
+      tab: SUNY
+    - scope: MyInst_and_CI
+      tab: Everything
+    vid: 01SUNY_BIN
+    domain: suny-bin
+  - inst: 01PASCAL_USCCOL
+    scopes:
+    - scope: MyInst_and_CI
+      tab: Everything
+    - scope: DiscoveryNetwork
+      tab: PASCAL
+    vid: USC
+    domain: pascal-usc
+  - inst: 01PASCAL_SWU
+    scopes:
+    - scope: MyInst_and_CI
+      tab: Everything
+    - scope: DiscoveryNetwork
+      tab: PASCAL
+    vid: SWU
+    domain: pascal-swu
+parameters:
+  skipDelivery: Y
+  blendFacetsSeparately: false
+  disableCache: false
+  getMore: 0
+  newspapersActive: false
+  newspapersSearch: false
+  lang: en
+  limit: 20
+  pcAvailability: false
+  rtaLinks: true
+  sort: rank
+data_log: ./data/primo_data.log
+timing_log: ./data/primo_timing.csv

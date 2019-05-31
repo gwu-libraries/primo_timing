@@ -4,55 +4,66 @@ const parseTime = d3.utcParse("%m-%d-%Y %H:%M"),
 	formatTime = d3.utcFormat("%Y-%m-%d %H:%M"),
 	formatLatency = d3.format('.2f');
 
-// line factory for creating d3.line functions 
-function lineFactory (xFunc, yFunc, valueKey) {
-	/* xFunc and yFunc should be d3 scale functions, where x is a datetime scale and y a linear scale. Assumes the function returned will be used to create a path from an array of objects, where each object has this structure -- as created by d3.nest.entries -- with one or more key-value pairs nested under the "value" key: 			
-				{key: date,
-				value: {valueKey1: ...,
-						valueKey2: ...}}  */
+const MAX_LATENCY = 30;
+
+function nestData (data) {
+	/* Nests the data under the timestamp, so that each object in the list has a key: datetime value and value: map, where the inner map contains an observation for each scope,inst combination  */
+	return d3.nest()
+            .key( (d) => {
+				return parseTime(d.timestamp);
+            })
+            .sortKeys( (a, b) => {
+            	return new Date(a) - new Date(b); // Seems like the d.nest.key function by default coerces to a string. 
+            })
+            .rollup( (leaves) => {
+            	return d3.nest(leaves) // nested nest to create a map as the second level, instead of an array
+               			.key(l => [l.scope, l.inst]) // Using the map function, coerce to string as key
+		       			.map(leaves);
+			})
+			.entries(data); // the outer array
+}
+
+function lineFactory (xFunc, yFunc, innerKey) {
+	/* xFunc and yFunc should be d3 scale functions, where x is a datetime scale and y a linear scale. Assumes the function returned will be used to create a path from an array of objects, each object with properties: key=timestamp and value=map(...). The keys of the *inner* map correspond to [scope, institution] pairs. The innerKey argument should be one such array (pair). */
 
 	return d3.line()
            		.x(function (d) { 
-           			//console.log(`${new Date(d.key)}: ${xFunc(new Date(d.key))}`)
                 	return xFunc(new Date(d.key));
             	})
           		.y(function (d) {
-	                //console.log(`${d.value[valueKey]}: ${yFunc(d.value[valueKey])}`);
-	                if (d.value[valueKey]) return yFunc(d.value[valueKey]);
+          			// Should be only one element in each array associated with each scope-institution pair for a given timesteamp
+	                return yFunc(d.value.get(innerKey)[0].mean_latency); // use the mean latency value for y 
     	        });
 }
 
-function setupChart(scopes) {
-	// Accepts an array of Primo scopes, creating a line for each
+function setupChart(data) {
+	// Creates a line for each unique pair -- inst, scope -- in the data
 
-	var margin = {top: 20, right: 20, bottom: 75, left: 120},
-    	width = 800 - margin.left - margin.right,
-    	height = 500 - margin.top - margin.bottom;
+	let margin = {top: 20, right: 20, bottom: 75, left: 120},
+    	width = 1200 - margin.left - margin.right,
+    	height = 600 - margin.top - margin.bottom;
 
-
-
-	//amount = Y axis
-	var y = d3.scaleLinear()
+	//latency = Y axis
+	let y = d3.scaleLinear()
     		.range([height, 0]);
 
-	//date of transaction (actual or expected) on the X
-	var x = d3.scaleTime()
+	//date of event on the X
+	let x = d3.scaleTime()
     		.range([0, width]);
 
 	//initiatilze axes with d3 helper functions
-	var yAxisFunc = d3.axisLeft(y)
-				.tickSizeInner(-width);
+	let yAxisFunc = d3.axisLeft(y);
 
-	var xAxisFunc = d3.axisBottom(x);
+	let xAxisFunc = d3.axisBottom(x);
 
-	// create an object holding a d3.line generator for each scope
-	var linesObj = scopes.reduce( (prev, curr) => {
-		prev[curr] = lineFactory(x, y, curr);
-		return prev;
-	}, {});
+	let lineMap = makeLineMap(x, y, data);
+
+	let colorScale = d3.scaleOrdinal()
+						.domain(lineMap.keys())
+						.range(d3.schemeSet3);
 
 	// add the SVG element and axes
-	var chart = d3.select("#chart").append("svg")
+	let chart = d3.select("#chart").append("svg")
     			.attr("width", width + margin.left + margin.right)
     			.attr("height", height + margin.top + margin.bottom)
     			.append("g")
@@ -66,15 +77,16 @@ function setupChart(scopes) {
         .attr('class', 'xaxis')
         .attr('transform', 'translate(0,' + height  + ')');
 
-	return [x, y, yAxisFunc, xAxisFunc, linesObj];
+	return [x, y, yAxisFunc, xAxisFunc, lineMap, colorScale];
 
 }
 
-function makeChartTitle(n) {
+function makeChartTitle([startDate, endDate]) {
 	// add a page title
 	d3.select("#title")
 		.attr("class", "title")
-		.text(`Primo Search Latency: Past ${n} Hours`);
+		.append('h2')
+		.text(`Primo Search Latency: ${formatTime(startDate)} to ${formatTime(endDate)}`);
 }
 
 
@@ -86,7 +98,7 @@ function drawAxes(x, y, yAxisFunc, xAxisFunc, dateRange, maxLatency) {
 
 	x.domain(dateRange);
 
-	var X = d3.select(".xaxis").call(xAxisFunc);
+	let X = d3.select(".xaxis").call(xAxisFunc);
 
 	// transform the X axis
 	X.selectAll('text')
@@ -96,15 +108,47 @@ function drawAxes(x, y, yAxisFunc, xAxisFunc, dateRange, maxLatency) {
         .attr('transform', 'rotate(-65)');
 }
 
+function makeLineMap(xFunc, yFunc, data) {
+	/*Map each scope and institution pair to a d3.line function that will use that [scope, institution] pair as the key when drawing a path from the data set.*/
+	return new Map(data.map( (event) => {
+				return [[event.scope, event.inst], lineFactory(xFunc, yFunc, [event.scope, event.inst])];
+			}));
+}
 
-function makeChart(data, allocation, fiscalDates, chartArgs) {
-	/* (Re)draws the chart with new data. Assumes data is a key-sorted nested object (from d3.nest.entries (see above). fiscalDates should be a 2-element array of  date objects, and allocation a float. chartArgs are returned by the setupChart function. */
+function drawLines(lineMap, data, colorScale) {
+	/* Appends path elements created from a data set. The lineMap should have the following structure:
+		{[scope, inst]: lineFunc for that scope,inst} */
+	for (let [key, value] of lineMap) {
+		// remove any existing line of that type
+		let classKey = key.join('_'); // the for loop returns [key, value] pairs. The key in this case is itself a pair: [scope, inst]. So we coerce to string for the class name of this line.
+		d3.select(".chart").select(`.${classKey}`).remove();
+		// append the new line of that type
+		d3.select(".chart")
+			.append("path")
+			.attr("class", `${classKey}`)
+			.datum(data)
+			.attr("d", value)
+			.attr("stroke", colorScale(key));	// a d3.line function
+	}
 	
-	let [x, y, yAxisFunc, xAxisFunc, linesObj] = chartArgs;
-	
-	drawAxes(x, y, yAxisFunc, xAxisFunc, fiscalDates, allocation);
+}
+function makeChartKeys() {
+	/*Create checkboxes for the institution/scope pairs, allowing visualization of a subset.*/
 
-	drawLines(linesObj, data);
+}
+
+function makeChart(nestedData, chartArgs) {
+	/* (Re)draws the chart with new data. Assumes data is a key-sorted nested object (from d3.nest.entries (see above).  */
+	
+	let [x, y, yAxisFunc, xAxisFunc, lineMap, colorScale] = chartArgs,
+		dateRange = [new Date(nestedData[0].key), new Date(nestedData[nestedData.length-1].key)],
+		maxLatency = MAX_LATENCY; // Use a fixed value for this, since Primo times out after 30 seconds.
+	
+	drawAxes(x, y, yAxisFunc, xAxisFunc, dateRange, maxLatency);
+
+	drawLines(lineMap, nestedData, colorScale);
+
+	makeChartTitle(dateRange);
 
 }
 
@@ -116,7 +160,8 @@ function processData(data) {
   	return data.map( d => {
   		let timestamp = parseTime(d.timestamp) ? parseTime(d.timestamp) : parseTimeOldFormat(d.timestamp);
   		d.timestamp = formatTime(timestamp);
-  		d.latency = formatLatency(d.latency);
+  		d.max_latency = formatLatency(d.max_latency);
+  		d.mean_latency = formatLatency(d.mean_latency)
   		return d;
   	})
   	.sort((a, b) => {
@@ -147,7 +192,7 @@ function showLogAsTable(data, columns) {
 		.data(data)
 		.enter()
 		.append('tr')
-		.attr('class', d => (d.latency < 5) ? 'normal' : 'alert')
+		.attr('class', d => (d.mean_latency < 5) ? 'normal' : 'alert')
 		.selectAll('td')
 		.data(d => columns.map(c => d[c]))
 		.enter()
@@ -155,8 +200,13 @@ function showLogAsTable(data, columns) {
 		.text(d => d);
 }
 
-d3.csv('./primo_timing.csv')
+d3.csv('./data/primo_timing.csv')
 	.then(data => {
+		let chargArgs = setupChart(data),
+			nested = nestData(data);
+		console.log(nested)
+		makeChart(nested, chargArgs);
+		// Draw the table
 		showLogAsTable(processData(data), data.columns);
 	})
 	.catch(e => console.log(e));
