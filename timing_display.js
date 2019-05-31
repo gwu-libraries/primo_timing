@@ -205,7 +205,7 @@ d3.csv('./data/primo_timing.csv')
 		let chargArgs = setupChart(data),
 			nested = nestData(data);
 		console.log(nested)
-		makeChart(nested, chargArgs);
+		//makeChart(nested, chargArgs);
 		// Draw the table
 		showLogAsTable(processData(data), data.columns);
 	})

@@ -1,5 +1,6 @@
 from datetime import datetime
 import asyncio
+from asyncio import TimeoutError
 import aiohttp
 from csv import DictWriter, DictReader
 import yaml
@@ -9,8 +10,11 @@ import logging
 import sys
 import os
 from random import choice
+from throttler import Throttler
 
 MAX_CSV_SIZE = 1000000
+TIMEOUT = 30
+RATE_LIMIT = 10 # Max 10 requests per second
 
 # Config file holds URL parameters, number of trials, and path to log files
 with open('./primo_timing.yml', 'r') as f:
@@ -41,7 +45,7 @@ results = []
 
 def load_search_strings(limit=-1):
     '''Function to read search strings from a CSV file. Can be used with a report from Primo Analytics of popular searches. Returns a list of strings, up to an optional limit.'''
-    with open(config['search_strs']['file'], 'r') as f:
+    with open(config['search_strs']['file'], 'r', errors='ignore') as f:
         reader = DictReader(f)   
         # Extract the search string value from the specified column for each row in the CSV
         return [row[config['search_strs']['column']] for row in reader][:limit]
@@ -61,26 +65,43 @@ async def on_request_end(session, trace_config_ctx, params):
         result.update(trace_config_ctx.trace_request_ctx)
         results.append(result)
 
+async def throttle_trace(throttler, *args, **kwargs):
+    '''Throttles the request. This allows us to re-use the clientsession on each call. '''
+    async with throttler:
+        return await do_trace(*args, **kwargs)
+
 async def do_trace(client, i, inst_domain, search_params, keep=False):
     '''Uses the aiohttp library to make an asynchronous request from Primo. Parameters should be an aiohttp client, the number of the current trial, and a subdomain string and parameters definining this particular institution, query string, view, tab, and scope.'''
     # Update the parameters with the generic params from the config file
     search_params.update(config['parameters'])
     search_params = {k: str(v) for k,v in search_params.items()}
-    async with client.get(base_url.format(domain=inst_domain), 
+    # Use a timeout corresponding to Primo's search timeout
+    timeout = aiohttp.ClientTimeout(total=TIMEOUT)
+    try:
+        async with client.get(base_url.format(domain=inst_domain),
+                        timeout=timeout, 
                         params=search_params, 
                         trace_request_ctx={'id':i, # These key-value pairs will be passed to the trace output
                                             'search_str': search_params['q'],
                                             'inst': search_params['inst'],
                                             'scope': search_params['scope']}) as session:
         # If this is the last of N trials, log the response text
-        if (i == n_tries-1) and keep:
-            try: 
-                response = await session.json()
-                # Just keep the first document returned (to keep the log file size manageable)
-                response_log.info(response['docs'][0])
-            except Exception as e:
-                response_log.error(e)
-                response_log.error('Request: ' + str(session.url))
+            if (i == n_tries-1) and keep:
+                try: 
+                    response = await session.json()
+                    # Just keep the first document returned (to keep the log file size manageable)
+                    response_log.info(response['docs'][0])
+                except Exception as e:
+                    response_log.error(e)
+                    response_log.error('Request: ' + str(session.url))
+    except TimeoutError:
+        # If it times out, capture this result
+        result = {"elapsed": TIMEOUT,
+                'id':i,
+                'search_str': search_params['q'],
+                'inst': search_params['inst'],
+                'scope': search_params['scope']}
+        results.append(result)
 
 async def run_trials(loop, search_strs, keep=False):
     '''This function runs the main async loop. First argument should be an event loop, second a list of search strings.'''
@@ -94,6 +115,7 @@ async def run_trials(loop, search_strs, keep=False):
     # Reusing the same client for all loops
     async with aiohttp.ClientSession(trace_configs=[trace_config]) as client:
     # Create a list of co-routines, one for each trial/scope/institution 
+        throttler = Throttler(rate_limit=RATE_LIMIT)
         awaitables = []
         for institution in config['institutions']:
             for scope in institution['scopes']:
@@ -108,7 +130,8 @@ async def run_trials(loop, search_strs, keep=False):
                                 'q': 'any,contains,{}'.format(search_str)}
                 for i in range(n_tries):
                     awaitables.append(loop.create_task
-                                        (do_trace(
+                                        (throttle_trace(
+                                            throttler,
                                             client, 
                                             i, 
                                             inst_domain=institution['domain'], 
