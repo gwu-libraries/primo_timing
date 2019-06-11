@@ -44,7 +44,7 @@ function lineFactory (xFunc, yFunc, innerKey) {
 function setupChart(data) {
 	// Creates a line for each unique pair -- inst, scope -- in the data
 
-	let nestedData = staggerTestData(nestData(data)); // Only for testing
+	let nestedData = nestData(data);
 
 	let margin = {top: 20, right: 20, bottom: 75, left: 120},
     	width = 1200 - margin.left - margin.right,
