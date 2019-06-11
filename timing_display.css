@@ -19,3 +19,9 @@
     width: 50px;
     float: left;
 }
+
+.line {
+	fill: none;
+	stroke-width: 2px;
+	visibility: visible;
+}

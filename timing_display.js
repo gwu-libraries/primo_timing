@@ -1,7 +1,7 @@
-const parseTime = d3.utcParse("%m-%d-%Y %H:%M"),
-	parseTimeOldFormat = d3.utcParse("%Y-%m-%d %H:%M:%S.%f"),
+const parseTime = d3.utcParse('%m-%d-%Y %H:%M'),
+	parseTimeOldFormat = d3.utcParse('%Y-%m-%d %H:%M:%S.%f'),
 	parseTimeNewFormat = d3.utcParse('%Y-%m-%d %H:%M'),
-	formatTime = d3.utcFormat("%Y-%m-%d %H:%M"),
+	formatTime = d3.utcFormat('%Y-%m-%d %H:%M'),
 	formatLatency = d3.format('.2f');
 
 const MAX_LATENCY = 30;
@@ -17,7 +17,7 @@ function nestData (data) {
             })
             .rollup( (leaves) => {
             	return d3.nest(leaves) // nested nest to create a map as the second level, instead of an array
-               			.key(l => [l.scope, l.inst]) // Using the map function, coerce to string as key
+               			.key(l => `${l.scope}_${l.inst}`) // Using the map function, coerce to string as key
 		       			.map(leaves);
 			})
 			.entries(data); // the outer array
@@ -27,17 +27,24 @@ function lineFactory (xFunc, yFunc, innerKey) {
 	/* xFunc and yFunc should be d3 scale functions, where x is a datetime scale and y a linear scale. Assumes the function returned will be used to create a path from an array of objects, each object with properties: key=timestamp and value=map(...). The keys of the *inner* map correspond to [scope, institution] pairs. The innerKey argument should be one such array (pair). */
 
 	return d3.line()
+           		.defined(function(d) { 
+           			return d.value.get(innerKey); // accounting for missing data 
+           		})
            		.x(function (d) { 
                 	return xFunc(new Date(d.key));
             	})
           		.y(function (d) {
-          			// Should be only one element in each array associated with each scope-institution pair for a given timesteamp
-	                return yFunc(d.value.get(innerKey)[0].mean_latency); // use the mean latency value for y 
+          			// Should be only one element in each array associated with each scope-institution pair for a given timestamp
+	                let event = d.value.get(innerKey);
+	 				return yFunc(+event[0].mean_latency); // use the mean latency value for y 
+	                
     	        });
 }
 
 function setupChart(data) {
 	// Creates a line for each unique pair -- inst, scope -- in the data
+
+	let nestedData = staggerTestData(nestData(data)); // Only for testing
 
 	let margin = {top: 20, right: 20, bottom: 75, left: 120},
     	width = 1200 - margin.left - margin.right,
@@ -63,12 +70,12 @@ function setupChart(data) {
 						.range(d3.schemeSet3);
 
 	// add the SVG element and axes
-	let chart = d3.select("#chart").append("svg")
-    			.attr("width", width + margin.left + margin.right)
-    			.attr("height", height + margin.top + margin.bottom)
-    			.append("g")
-    			.attr("class", "chart")
-    			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+	let chart = d3.select('#chart').append('svg')
+    			.attr('width', width + margin.left + margin.right)
+    			.attr('height', height + margin.top + margin.bottom)
+    			.append('g')
+    			.attr('class', 'chart')
+    			.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
 	chart.append('g')
         .attr('class', 'yaxis');
@@ -77,28 +84,28 @@ function setupChart(data) {
         .attr('class', 'xaxis')
         .attr('transform', 'translate(0,' + height  + ')');
 
-	return [x, y, yAxisFunc, xAxisFunc, lineMap, colorScale];
+	return [nestedData, x, y, yAxisFunc, xAxisFunc, lineMap, colorScale];
 
 }
 
 function makeChartTitle([startDate, endDate]) {
 	// add a page title
-	d3.select("#title")
-		.attr("class", "title")
+	d3.select('#title')
+		.attr('class', 'title')
 		.append('h2')
 		.text(`Primo Search Latency: ${formatTime(startDate)} to ${formatTime(endDate)}`);
 }
 
 
 function drawAxes(x, y, yAxisFunc, xAxisFunc, dateRange, maxLatency) {
-	/*Draws the x and y axes. Accepts the d3 x and y scale functions (x is time series, y is linear float), as well as the d3 axis functions and range endpoints. Assumes the axis elements have already been created as "g" elements on the SVG space. dateRange should be an array of two Date objects. maxLatency should be a float.*/
+	/*Draws the x and y axes. Accepts the d3 x and y scale functions (x is time series, y is linear float), as well as the d3 axis functions and range endpoints. Assumes the axis elements have already been created as 'g' elements on the SVG space. dateRange should be an array of two Date objects. maxLatency should be a float.*/
 	y.domain([0, maxLatency]);
 	
 	d3.select('.yaxis').call(yAxisFunc);
 
 	x.domain(dateRange);
 
-	let X = d3.select(".xaxis").call(xAxisFunc);
+	let X = d3.select('.xaxis').call(xAxisFunc);
 
 	// transform the X axis
 	X.selectAll('text')
@@ -110,37 +117,86 @@ function drawAxes(x, y, yAxisFunc, xAxisFunc, dateRange, maxLatency) {
 
 function makeLineMap(xFunc, yFunc, data) {
 	/*Map each scope and institution pair to a d3.line function that will use that [scope, institution] pair as the key when drawing a path from the data set.*/
-	return new Map(data.map( (event) => {
-				return [[event.scope, event.inst], lineFactory(xFunc, yFunc, [event.scope, event.inst])];
-			}));
+	return data.reduce( (lineMap, d) => {
+		let key = `${d.scope}_${d.inst}`;
+		if (!lineMap.has(key)) {
+			lineMap.set(key, lineFactory(xFunc, yFunc, key));
+		}
+		return lineMap;
+	}, new Map());
+	
 }
 
 function drawLines(lineMap, data, colorScale) {
 	/* Appends path elements created from a data set. The lineMap should have the following structure:
 		{[scope, inst]: lineFunc for that scope,inst} */
 	for (let [key, value] of lineMap) {
-		// remove any existing line of that type
-		let classKey = key.join('_'); // the for loop returns [key, value] pairs. The key in this case is itself a pair: [scope, inst]. So we coerce to string for the class name of this line.
-		d3.select(".chart").select(`.${classKey}`).remove();
+
+		d3.select('.chart').select(`.${key}`).remove();
 		// append the new line of that type
-		d3.select(".chart")
-			.append("path")
-			.attr("class", `${classKey}`)
+		d3.select('.chart')
+			.append('path')
+			.attr('class', `line ${key}`)
 			.datum(data)
-			.attr("d", value)
-			.attr("stroke", colorScale(key));	// a d3.line function
+			.attr('d', value) // a d3.line function
+			.attr('stroke', colorScale(key));	
 	}
 	
 }
-function makeChartKeys() {
+function makeChartKeys(lineMap, colorScale) {
 	/*Create checkboxes for the institution/scope pairs, allowing visualization of a subset.*/
+	let chartDiv = d3.select('#chart-key')
+					.selectAll('input')
+					.data(Array.from(lineMap))
+					.enter()
+					.append('div')
+
+	chartDiv.append('input')
+		.attr('type', 'checkbox')
+		.attr('name', (d) => d[0])
+		.attr('class', (d) => `checkbox ${d[0]}`) 
+		.attr('checked', true)
+		.on('change', function (d) {
+			// on change of the checkbox, toggle the visibility of this visual element on the chart
+			let checkbox = d3.select(this); // get the checkbox element
+			d3.select(`.line.${d[0]}`)
+				.style('visibility', (d) => {
+					if (checkbox.property('checked')) {
+						return 'visible';
+					}
+					else {
+						return 'hidden';
+					}
+
+				});
+		});
+
+	chartDiv.append('label')
+		.append('label')
+		.attr('for', (d) => d[0])
+		.text((d) => d[0])
+		.on("mouseover", (d)=> {
+			// select all lines in the chart except the one matching the label currently being moused over 
+			d3.selectAll(`.line:not(.${d[0]})`)
+				/*.filter(function (dd) {
+					return d3.select(`.checkbox.${}`).property('checked'); // filter out those that have been disabled 
+				})*/
+				.style('visibility', 'hidden');  // hide the matching elements
+		})
+		.on("mouseout", (d) => {
+			d3.selectAll(`.line:not(.${d[0]})`)
+				/*.filter(function (dd) {
+					return d3.selectAll(`.checkbox`).property('checked');
+				})*/
+				.style('visibility', 'visible');  // reveal the matching elements
+		});
 
 }
 
-function makeChart(nestedData, chartArgs) {
+function makeChart(chartArgs) {
 	/* (Re)draws the chart with new data. Assumes data is a key-sorted nested object (from d3.nest.entries (see above).  */
 	
-	let [x, y, yAxisFunc, xAxisFunc, lineMap, colorScale] = chartArgs,
+	let [nestedData, x, y, yAxisFunc, xAxisFunc, lineMap, colorScale] = chartArgs,
 		dateRange = [new Date(nestedData[0].key), new Date(nestedData[nestedData.length-1].key)],
 		maxLatency = MAX_LATENCY; // Use a fixed value for this, since Primo times out after 30 seconds.
 	
@@ -149,6 +205,7 @@ function makeChart(nestedData, chartArgs) {
 	drawLines(lineMap, nestedData, colorScale);
 
 	makeChartTitle(dateRange);
+	makeChartKeys(lineMap, colorScale);
 
 }
 
@@ -176,9 +233,20 @@ function processData(data) {
 
 }
 
+function staggerTestData(data) {
+	/*Function for testing. Takes timestamp data that might be too close together to render well and spaces it out. Argument should be an array of objects, where each object has a property called 'key,' whose value is a valid timestamp.*/
+	return data.reduce( (prev, curr, i) => {
+		let oldDate = new Date(curr.key),
+			newDate = oldDate.setDate(oldDate.getDate() + i + 1); // add a day to each date
+		curr.key = new Date(newDate);
+		prev.push(curr);
+		return prev;
+	}, []);
+}
+
 function showLogAsTable(data, columns) {
 	let table = d3.select('.table') 
-
+	console.log(data)
 	// Create the table header
 	table.select('thead tr')
 		.selectAll('td')
@@ -202,10 +270,8 @@ function showLogAsTable(data, columns) {
 
 d3.csv('./data/primo_timing.csv')
 	.then(data => {
-		let chargArgs = setupChart(data),
-			nested = nestData(data);
-		console.log(nested)
-		//makeChart(nested, chargArgs);
+		let chartArgs = setupChart(data);
+		makeChart(chartArgs);
 		// Draw the table
 		showLogAsTable(processData(data), data.columns);
 	})
