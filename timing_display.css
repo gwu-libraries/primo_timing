@@ -5,18 +5,14 @@
 	color: black;
 }
 .container {
-    display: block;
-    padding-left: 50px;
+	margin: 0 auto;
 }
 
 .chart {
-    width: 100%;
-    float: left;
-    margin-left: -150px;
+    margin-left: 350px;
 }
 
 .chartKey {
-    width: 50px;
     float: left;
 }
 
@@ -24,4 +20,7 @@
 	fill: none;
 	stroke-width: 2px;
 	visibility: visible;
+}
+.title {
+	font-size: 18pt;
 }

@@ -11,6 +11,8 @@ import sys
 import os
 from random import choice
 from throttler import Throttler
+import requests
+from datetime import datetime
 
 MAX_CSV_SIZE = 1000000
 TIMEOUT = 30
@@ -143,6 +145,36 @@ async def run_trials(loop, search_strs, keep=False):
     # Executed when all async tasks have finished
     return output_results(timestamp) 
 
+def main_noasync(keep=False):
+    '''Non-async version of the code, for testing purposes.'''
+    search_strs = load_search_strings()
+    timestamp = datetime.today().strftime('%m-%d-%Y %H:%M')
+    for institution in config['institutions']:
+        for scope in institution['scopes']:
+            # Select a random keyword for this set of trials
+            search_str = choice(search_strs)
+            # Assemble the search parameters for this particular inst/scope
+            search_params = {'inst': institution['inst'],
+                                'vid': '{}:{}'.format(institution['inst'], 
+                                                        institution['vid']),
+                                'scope': scope['scope'],
+                                'tab': scope['tab'],
+                                'q': 'any,contains,{}'.format(search_str)}
+            for i in range(n_tries):
+                response = requests.get(base_url.format(domain=institution['domain']),
+                                params=search_params)
+                if response.status_code != 200:
+                    response_log.error('Bad Request: ' + str(params.response.url))
+                else:
+                    elapsed = response.elapsed.total_seconds()
+                    result = {"elapsed": elapsed,
+                            'id':i,
+                            'search_str': search_params['q'],
+                            'inst': search_params['inst'],
+                            'scope': search_params['scope']}
+                    results.append(result)
+    return output_results(timestamp) 
+
 def main(keep=False):
     '''This function just calls the main async function, passing in the event loop.'''
     search_strs = load_search_strings()
@@ -195,10 +227,10 @@ def init_timing_log():
 if __name__ == '__main__':
     '''Command line usage: pass the "--init" argument on first run to create the CSV.'''
     '''Pass --keep flag to store the search result, one from each trial.'''
-    if (len(sys.argv) > 1) and (sys.argv[1] == '--init'):
+    if '--init' in sys.argv:
         init_timing_log()
-    if (len(sys.argv) > 2) and (sys.argv[2] == '--keep'):
-        keep = True
+    keep = '--keep' in sys.argv
+    if '--no-async' in sys.argv:
+        main_noasync(keep)
     else:
-        keep=False
-    main(keep)
+        main(keep)

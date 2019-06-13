@@ -2,6 +2,7 @@ const parseTime = d3.utcParse('%m-%d-%Y %H:%M'),
 	parseTimeOldFormat = d3.utcParse('%Y-%m-%d %H:%M:%S.%f'),
 	parseTimeNewFormat = d3.utcParse('%Y-%m-%d %H:%M'),
 	formatTime = d3.utcFormat('%Y-%m-%d %H:%M'),
+	formatDate = d3.utcFormat('%Y-%m-%d'),
 	formatLatency = d3.format('.2f');
 
 const MAX_LATENCY = 30;
@@ -93,7 +94,9 @@ function makeChartTitle([startDate, endDate]) {
 	d3.select('#title')
 		.attr('class', 'title')
 		.append('h2')
-		.text(`Primo Search Latency: ${formatTime(startDate)} to ${formatTime(endDate)}`);
+		.text('Primo Search Latency')
+		.append('h4')
+		.text(`${formatDate(startDate)} -- ${formatDate(endDate)}`);
 }
 
 
@@ -146,49 +149,34 @@ function drawLines(lineMap, data, colorScale) {
 function makeChartKeys(lineMap, colorScale) {
 	/*Create checkboxes for the institution/scope pairs, allowing visualization of a subset.*/
 	let chartDiv = d3.select('#chart-key')
-					.selectAll('input')
-					.data(Array.from(lineMap))
-					.enter()
 					.append('div')
+					.append('select');
 
-	chartDiv.append('input')
-		.attr('type', 'checkbox')
-		.attr('name', (d) => d[0])
-		.attr('class', (d) => `checkbox ${d[0]}`) 
-		.attr('checked', true)
-		.on('change', function (d) {
-			// on change of the checkbox, toggle the visibility of this visual element on the chart
-			let checkbox = d3.select(this); // get the checkbox element
-			d3.select(`.line.${d[0]}`)
-				.style('visibility', (d) => {
-					if (checkbox.property('checked')) {
-						return 'visible';
-					}
-					else {
-						return 'hidden';
-					}
+	chartDiv.append('option')
+		.attr('value', 'All')
+		.text('All')
+									
 
-				});
-		});
+	chartDiv.selectAll('option')
+			.data(Array.from(lineMap))
+			.enter()
+			.append('option')
+			.attr('value', (d) => d[0])
+			.text((d) => d[0]);
 
-	chartDiv.append('label')
-		.append('label')
-		.attr('for', (d) => d[0])
-		.text((d) => d[0])
-		.on("mouseover", (d)=> {
-			// select all lines in the chart except the one matching the label currently being moused over 
-			d3.selectAll(`.line:not(.${d[0]})`)
-				/*.filter(function (dd) {
-					return d3.select(`.checkbox.${}`).property('checked'); // filter out those that have been disabled 
-				})*/
-				.style('visibility', 'hidden');  // hide the matching elements
-		})
-		.on("mouseout", (d) => {
-			d3.selectAll(`.line:not(.${d[0]})`)
-				/*.filter(function (dd) {
-					return d3.selectAll(`.checkbox`).property('checked');
-				})*/
-				.style('visibility', 'visible');  // reveal the matching elements
+	chartDiv.on('change', function () {
+			// on change of the selectbox, toggle the visibility of this visual element on the chart
+			// this will be a reference to the select element
+			let selection = d3.select(this).property('value');
+			if (selection == 'All') {
+				d3.selectAll('.line').style('visibility', 'visible'); // make all lines visible
+			}
+			else {
+				d3.selectAll(`.line.${selection}`)
+					.style('visibility', 'visible'); // make only the selected line visible
+				d3.selectAll(`.line:not(.${selection})`)
+					.style('visibility', 'hidden'); // hide the rest
+			}
 		});
 
 }
