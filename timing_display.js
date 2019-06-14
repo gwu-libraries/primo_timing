@@ -213,7 +213,7 @@ function processData(data) {
   		return b.timestamp <= a.timestamp ? -1 : 1;
   	})
   	.filter(d => {
-  		// filter and return only those logs within the last 40 hours
+  		// filter and return only those logs within the last 48 hours
   		timestamp = parseTimeNewFormat(d.timestamp);
   		// math to convert the millisecond time delta to a difference of hours
   		return (new Date() - timestamp) / 1000 / 60 / 60 <= 48;
@@ -234,7 +234,6 @@ function staggerTestData(data) {
 
 function showLogAsTable(data, columns) {
 	let table = d3.select('.table') 
-	console.log(data)
 	// Create the table header
 	table.select('thead tr')
 		.selectAll('td')

@@ -13,6 +13,7 @@ from random import choice
 from throttler import Throttler
 import requests
 from datetime import datetime
+from statistics import stdev
 
 MAX_CSV_SIZE = 1000000
 TIMEOUT = 30
@@ -37,7 +38,7 @@ response_log.addHandler(file_handler)
 # Number of trials per URL; latency will be averaged across N tries
 n_tries = config['n_tries']
 # Header row for the CSV file
-fieldnames = ['timestamp', 'max_latency', 'mean_latency', 'n_tries', 'inst', 'scope', 'search_str']
+fieldnames = ['timestamp', 'max_latency', 'mean_latency', 'n_tries', 'inst', 'scope', 'search_str', 'stdev_latency']
 
 base_url = 'https://{domain}.primo.exlibrisgroup.com/primaws/rest/pub/pnxs'
 
@@ -183,12 +184,13 @@ def main(keep=False):
 
 def extract_summary(group):
     '''Helper function for use with the itertools groupby function.'''
-    group = list(group)
+    group = [g['elapsed'] for g in group]
     # Total number of successful trials (=status 200)
     n_tries = len(group)
     return {'n_tries': n_tries,
-            'max_latency': max([g['elapsed'] for g in group]),
-            'mean_latency': sum([g['elapsed'] for g in group]) / n_tries}
+            'max_latency': max(group),
+            'mean_latency': sum(group) / n_tries,
+            'stdev_latency': stdev(group)}
 
 def output_results(timestamp):
     '''Regular, synchronous function to collate the results and update a CSV file.'''
