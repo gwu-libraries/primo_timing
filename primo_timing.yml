@@ -59,6 +59,14 @@ institutions:
       tab: PASCAL
     vid: SWU
     domain: pascal-swu
+  - inst: 01WRLC_GWAHLTH
+    scopes:
+    - scope: MyInst_and_CI
+      tab: Everything
+    - scope: DN_and_CI
+      tab: WRLC
+    vid: 01WRLC_GWAHLTH
+    domain: wrlc-gwahlth
 parameters:
   skipDelivery: Y
   blendFacetsSeparately: false
