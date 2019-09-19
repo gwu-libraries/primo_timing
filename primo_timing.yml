@@ -1,10 +1,31 @@
-search_str: lucretius
+search_strs: 
+  file: ./data/primo_top_searches.csv
+  column: Search String
 n_tries: 10
-inst_codes: 
- - 01WRLC_GWA
-vid: live
-scopes:
- - DN_and_CI
- - CentralIndex
-data_log: ./primo_data.log
-timing_log: ./primo_timing.csv
+institutions:
+  - inst: 01WRLC_GWA
+    scopes: 
+    - scope: DN_and_CI
+      tab: Everything
+    vid: live
+    domain: wrlc-gwu
+  - inst: 01WRLC_AMU
+    scopes:
+    - scope: DN_and_CI
+      tab: Everything
+    vid: prod
+    domain: wrlc-amu
+parameters:
+  skipDelivery: Y
+  blendFacetsSeparately: false
+  disableCache: false
+  getMore: 0
+  newspapersActive: false
+  newspapersSearch: false
+  lang: en
+  limit: 20
+  pcAvailability: false
+  rtaLinks: true
+  sort: rank
+data_log: ./data/primo_data.log
+timing_log: ./data/primo_timing.csv

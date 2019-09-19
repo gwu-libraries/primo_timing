@@ -1,13 +1,24 @@
 {
-	"name": "primo-timing",
-	"version": "0.0.1",
-	"description": "visualiztion of latency logs from Pimo ",
-	"author": "Dolsy Smith <dsmith@gwu.edu>",
-	"main": "server.js",
-	"dependencies": {
-		"express": "~4.16.0",
-		"body-parser": "~1.18.3",
-		"d3": "~5.7.0"
-	},
-	"license": true
+  "name": "primo-timer",
+  "version": "0.1.0",
+  "description": "Using asynchronous code for better performance, this script pings the supplied URL a given number of times and records the average latency. It also logs the response text from the last ping.",
+  "main": "primo_timing_server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node primo_timing_server.js"
+  },
+  "dependencies": {
+    "async-csv": "^2.1.1",
+    "axios": "^0.19.0",
+    "body-parser": "^1.18.3",
+    "bootstrap": "^4.3.1",
+    "d3": "^5.7.0",
+    "express": "^4.16.0",
+    "handsontable": "^7.1.0",
+    "jquery": "^3.4.1",
+    "pg": "^7.11.0",
+    "winston": "^3.2.1"
+  },
+  "author": "Dolsy Smith <dsmith@gwu.edu>",
+  "license": "MIT"
 }

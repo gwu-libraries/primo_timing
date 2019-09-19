@@ -1,0 +1,26 @@
+.alert {
+	color: red;
+}
+.normal {
+	color: black;
+}
+.container {
+	margin: 0 auto;
+}
+
+.chart {
+    margin-left: 350px;
+}
+
+.chartKey {
+    float: left;
+}
+
+.line {
+	fill: none;
+	stroke-width: 2px;
+	visibility: visible;
+}
+.title {
+	font-size: 18pt;
+}
