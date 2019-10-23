@@ -113,6 +113,7 @@ async function testUrl(urlData, query, keywordObj) {
 		let response = await axios.get(url, {params: params,
 											timeout: config.timeout});
 		// Return the duration value calculated by the interceptors, plus the timelog object of the response object (provided by Primo).
+		console.log(`${urlData.domain_prefix}: ${response.duration}`);
 		return {primoId: urlData.id, 
 				duration: response.duration, 
 				timelog: response.data.timelog,
