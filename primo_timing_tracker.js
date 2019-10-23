@@ -114,6 +114,7 @@ async function testUrl(urlData, query, keywordObj) {
 											timeout: config.timeout});
 		// Return the duration value calculated by the interceptors, plus the timelog object of the response object (provided by Primo).
 		console.log(`${urlData.domain_prefix}: ${response.duration}`);
+		//console.log(response.request.res.responseUrl);
 		return {primoId: urlData.id, 
 				duration: response.duration, 
 				timelog: response.data.timelog,
@@ -160,11 +161,12 @@ async function testUrls() {
 	let urlData = await getUrls();
 	// Get a kewyord to use for this test
 	let keywordObj = await getKeyword();
-	// Iterate over the list of urls to test with Priomise.all
-	// urlData.map should return a list of promises, which Promise.all will run in parallel.
-	let timingData = await Promise.all(urlData.map(d => testUrl(d, 
-																config.primoQuery,
-																keywordObj)));
+	// Iterate over the list of urls to test with a for loop -- sequential operation
+	let timingData = [];
+	for (let i=0; i<urlData.length; i++) {
+		let result = await testUrl(urlData[i], config.primoQuery, keywordObj);
+		timingData.push(result);
+	}
 	// Write the resulst to the database
 	await storeData(timingData, keywordObj);
 	return;

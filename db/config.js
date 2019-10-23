@@ -5,7 +5,7 @@ module.exports = {
 	urlDomain: 'primo.exlibrisgroup.com/primaws/rest/pub/pnxs',
 	urlParams: {
 		skipDelivery: 'Y',
-		blendFacetsSeparately: false,
+		blendFacetsSeparately: 'false',
 		inst: null,
 		vid: null,
 		scope: null,
