@@ -114,7 +114,7 @@ async function testUrl(urlData, query, keywordObj) {
 											timeout: config.timeout});
 		// Return the duration value calculated by the interceptors, plus the timelog object of the response object (provided by Primo).
 		console.log(`${urlData.domain_prefix}: ${response.duration}`);
-		//console.log(response.request.res.responseUrl);
+		console.log(response.request.res.responseUrl);
 		return {primoId: urlData.id, 
 				duration: response.duration, 
 				timelog: response.data.timelog,
